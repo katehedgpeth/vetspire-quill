@@ -1,4 +1,4 @@
-import Parchment from 'parchment';
+import Parchment, { LeafBlot } from 'parchment';
 import clone from 'clone';
 import equal from 'deep-equal';
 import Emitter from './emitter';
@@ -28,7 +28,7 @@ class Selection {
     this.handleComposition();
     this.handleDragging();
     this.emitter.listenDOM('selectionchange', document, () => {
-      if (!this.mouseDown) {
+      if (!this.mouseDown && !this.composing) {
         setTimeout(this.update.bind(this, Emitter.sources.USER), 1);
       }
     });
@@ -61,8 +61,10 @@ class Selection {
   handleComposition() {
     this.root.addEventListener('compositionstart', () => {
       this.composing = true;
+      this.scroll.batchStart();
     });
     this.root.addEventListener('compositionend', () => {
+      this.scroll.batchEnd();
       this.composing = false;
       if (this.cursor.parent) {
         const range = this.cursor.restore();
@@ -188,11 +190,11 @@ class Selection {
       let index = blot.offset(this.scroll);
       if (offset === 0) {
         return index;
-      } else if (blot instanceof Parchment.Container) {
-        return index + blot.length();
-      } else {
+      }
+      if (blot instanceof LeafBlot) {
         return index + blot.index(node, offset);
       }
+      return index + blot.length();
     });
     let end = Math.min(Math.max(...indexes), this.scroll.length() - 1);
     let start = Math.min(end, ...indexes);
